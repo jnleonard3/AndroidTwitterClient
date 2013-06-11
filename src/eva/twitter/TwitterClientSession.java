@@ -259,5 +259,17 @@ public class TwitterClientSession {
         
         authenticatedRead("https://api.twitter.com/1.1/statuses/update.json", "POST", parameters);
     }
+    
+    public static void main(String[] args) {
+        
+        TwitterApi api = new TwitterApi(TwitterProps.instance().getConsumerKey(), TwitterProps.instance().getConsumerSecret());
+
+        TwitterClientSession clientApi = api.createClientSession(TwitterProps.instance().getTempToken(), TwitterProps.instance().getTempSecret());
+        
+        List<Tweet> tweets = clientApi.getMyTweets();
+        
+        System.out.println(tweets.size());
+        
+    }
 
 }

@@ -80,7 +80,7 @@ public class TwitterApi {
 
                 String value = oAuthParameters.getParameter(parameter);
 
-                if (parameter != ParameterEnum.OAUTH_SIGNATURE && value != null) {
+                if (value != null) {
 
                     parameterString.append(URLEncoder.encode(parameter.getKey(), "UTF-8"));
                     parameterString.append("=");
@@ -132,8 +132,20 @@ public class TwitterApi {
             connection.setRequestProperty("Accept-Charset", charset);
             connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded;charset=" + charset);
             connection.setRequestProperty("Authorization", header);
+
+            if (httpMethod.equals("POST")) {
+
+                StringBuilder bodyBuilder = new StringBuilder();
+
+                OutputStream output = connection.getOutputStream();
+                output.write(bodyBuilder.toString().getBytes(charset));
+            }
             
             try {
+                
+                HttpURLConnection httpConnection = (HttpURLConnection) connection;
+                
+                System.out.println("Response Code: " + httpConnection.getResponseCode());
 
                 BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
 
@@ -171,7 +183,8 @@ public class TwitterApi {
 
 	    TwitterApi api = new TwitterApi(TwitterProps.instance().getConsumerKey(), TwitterProps.instance().getConsumerSecret());
 	    
-	    api.read("https://twitter.com/oauth/request_token", "POST");
+	    String value = api.read("https://api.twitter.com/oauth/request_token", "POST");
 	    
+	    System.out.println(value);	    
 	}
 }
