@@ -5,20 +5,16 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.JSONValue;
 
 import biz.source_code.base64Coder.Base64Coder;
 
@@ -41,16 +37,26 @@ public class TwitterApi {
 	
 	public String getConsumerSecret() {
 	    
-	    return consumerSecret;
-	}
-	
-	public String read(String url, String httpMethod) {
-	    
-	    return read(url, httpMethod, consumerKey, consumerSecret);
-	}
-	
-    public static String read(String url, String httpMethod, String consumerKey, String consumerSecret) {
-        
+        return consumerSecret;
+    }
+
+    public String read(String url, String httpMethod, Parameters requestParameters) {
+
+        return read(url, httpMethod, consumerKey, consumerSecret, null, null, requestParameters);
+    }
+
+    public String read(String url, String httpMethod, String token, Parameters requestParameters) {
+
+        return read(url, httpMethod, consumerKey, consumerSecret, token, null, requestParameters);
+    }
+    
+    public String read(String url, String httpMethod, String token, String token_secret, Parameters requestParameters) {
+
+        return read(url, httpMethod, consumerKey, consumerSecret, token, token_secret, requestParameters);
+    }
+
+    public static String read(String url, String httpMethod, String consumerKey, String consumerSecret, String token, String tokenSecret, Parameters requestParameters) {
+
         StringBuffer buffer = new StringBuffer();
         try {
             /**
@@ -64,21 +70,39 @@ public class TwitterApi {
              * Listing of all parameters necessary to retrieve a token (sorted
              * lexicographically as demanded)
              */
-
             Parameters oAuthParameters = new Parameters();
             
-            oAuthParameters.setParameter(ParameterEnum.OAUTH_CALLBACK, "oob");
             oAuthParameters.setParameter(ParameterEnum.OAUTH_CONSUMER_KEY, consumerKey);
             oAuthParameters.setParameter(ParameterEnum.OAUTH_NONCE, String.valueOf(nonce));
             oAuthParameters.setParameter(ParameterEnum.OAUTH_SIGNATURE_METHOD, "HMAC-SHA1");
             oAuthParameters.setParameter(ParameterEnum.OAUTH_TIMESTAMP, String.valueOf(seconds));
+            if(token != null) {
+                
+                oAuthParameters.setParameter(ParameterEnum.OAUTH_TOKEN, token);
+            }
             oAuthParameters.setParameter(ParameterEnum.OAUTH_VERSION, "1.0");
-
+            
+            Parameters mergedParameters = new Parameters();
+            
+            if(requestParameters != null) {
+                
+                for(ParameterEnum parameter : requestParameters.getOauthParameterKeys()) {
+                    
+                    System.out.println(parameter + ", " + requestParameters.getParameter(parameter));
+                    
+                    oAuthParameters.setParameter(parameter, requestParameters.getParameter(parameter));
+                }
+                
+                mergedParameters.addAll(requestParameters);
+            }
+            
+            mergedParameters.addAll(oAuthParameters);
+            
             StringBuilder parameterString = new StringBuilder();
 
-            for (ParameterEnum parameter : oAuthParameters.getParameters()) {
+            for (ParameterEnum parameter : mergedParameters.getParameters()) {
 
-                String value = oAuthParameters.getParameter(parameter);
+                String value = mergedParameters.getParameter(parameter);
 
                 if (value != null) {
 
@@ -88,8 +112,11 @@ public class TwitterApi {
                     parameterString.append("&");
                 }
             }
+            
+            if(parameterString.length() > 0) {
 
-            parameterString.deleteCharAt(parameterString.length() - 1);
+                parameterString.deleteCharAt(parameterString.length() - 1);
+            }
             
             /**
              * Generation of the signature base string
@@ -97,6 +124,11 @@ public class TwitterApi {
             String signature_base_string = httpMethod + "&" + URLEncoder.encode(url, "UTF-8") + "&" + URLEncoder.encode(parameterString.toString(), "UTF-8");
 
             String signing_key = URLEncoder.encode(consumerSecret, "UTF-8") + "&";
+            
+            if(tokenSecret != null) {
+                
+                signing_key = signing_key + URLEncoder.encode(tokenSecret, "UTF-8");
+            }
             
             /**
              * Sign the request
@@ -136,6 +168,30 @@ public class TwitterApi {
             if (httpMethod.equals("POST")) {
 
                 StringBuilder bodyBuilder = new StringBuilder();
+                
+                if(requestParameters != null && !requestParameters.getParameters().isEmpty()) {
+                    
+                    for(ParameterEnum parameter : requestParameters.getParameters()) {
+                        
+                        if(!parameter.isOauthKey()) {
+                        
+                            String value = requestParameters.getParameter(parameter);
+                            
+                            if (value != null) {
+                                
+                                bodyBuilder.append(URLEncoder.encode(parameter.getKey(), "UTF-8"));
+                                bodyBuilder.append("=");
+                                bodyBuilder.append(URLEncoder.encode(value, "UTF-8").replace("+", "%20"));
+                                bodyBuilder.append("&");
+                            }
+                        }
+                    }
+                    
+                    if(bodyBuilder.length() > 0) {
+                    
+                        bodyBuilder.deleteCharAt(bodyBuilder.length() - 1);
+                    }
+                }
 
                 OutputStream output = connection.getOutputStream();
                 output.write(bodyBuilder.toString().getBytes(charset));
@@ -173,6 +229,93 @@ public class TwitterApi {
 
         return buffer.toString();
     }
+    
+    public OauthRequestToken getRequestToken(String callback_url) {
+        
+        Parameters requestTokenParameters = new Parameters();
+        
+        requestTokenParameters.setParameter(ParameterEnum.OAUTH_CALLBACK, callback_url);
+        
+        String value = read("https://api.twitter.com/oauth/request_token", "POST", requestTokenParameters);
+        
+        String[] propertiesArray = value.split("&");
+        
+        Map<String, String> properties = new HashMap<String, String>();
+        
+        for(String property : propertiesArray) {
+            
+            String[] propertyEntry = property.split("=");
+            
+            properties.put(propertyEntry[0], propertyEntry[1]);
+        }
+        
+        String token = properties.get(ParameterEnum.OAUTH_TOKEN.getKey());
+        
+        String token_secret = properties.get(ParameterEnum.OAUTH_TOKEN_SECRET.getKey());
+        
+        return new OauthRequestToken(token, token_secret);
+    }
+    
+    public String getAuthorizationUrl(OauthRequestToken requestToken) {
+        
+        return "https://api.twitter.com/oauth/authenticate?oauth_token=" + requestToken.getToken();
+    }
+    
+    public String parseAuthorizationCallback(String urlString) {
+        
+        try {
+            
+            URL url = new URL(urlString);
+            
+            String query = url.getQuery();
+            
+            String[] propertiesArray = query.split("&");
+            
+            Map<String, String> properties = new HashMap<String, String>();
+            
+            for(String property : propertiesArray) {
+                
+                String[] propertyEntry = property.split("=");
+                
+                properties.put(propertyEntry[0], propertyEntry[1]);
+            }
+            
+            String verifier = properties.get(ParameterEnum.OAUTH_VERIFIER.getKey());
+            
+            return verifier;
+            
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+        
+        return null;
+    }
+    
+    public TwitterClientSession getAccessToken(OauthRequestToken requestToken, String verifier) {
+        
+        Parameters requestTokenParameters = new Parameters();
+        
+        requestTokenParameters.setParameter(ParameterEnum.OAUTH_VERIFIER, verifier);
+        
+        String value = read("https://api.twitter.com/oauth/access_token", "POST", requestToken.getToken(), requestTokenParameters);
+        
+        String[] propertiesArray = value.split("&");
+        
+        Map<String, String> properties = new HashMap<String, String>();
+        
+        for(String property : propertiesArray) {
+            
+            String[] propertyEntry = property.split("=");
+            
+            properties.put(propertyEntry[0], propertyEntry[1]);
+        }
+        
+        String token = properties.get(ParameterEnum.OAUTH_TOKEN.getKey());
+        
+        String token_secret = properties.get(ParameterEnum.OAUTH_TOKEN_SECRET.getKey());
+        
+        return createClientSession(token, token_secret);
+    }
 	
 	public TwitterClientSession createClientSession(String token, String tokenSecret) {
 	    
@@ -183,8 +326,22 @@ public class TwitterApi {
 
 	    TwitterApi api = new TwitterApi(TwitterProps.instance().getConsumerKey(), TwitterProps.instance().getConsumerSecret());
 	    
-	    String value = api.read("https://api.twitter.com/oauth/request_token", "POST");
+	    OauthRequestToken value = api.getRequestToken("http://localhost/sign_in_with_twitter");
 	    
-	    System.out.println(value);	    
+	    String url = api.getAuthorizationUrl(value);
+	    
+	    System.out.println(url);
+
+	    System.out.println("Enter callback URL value");
+	    Scanner keyboard = new Scanner(System.in);
+	    String input = keyboard.nextLine();
+	    
+	    String verifier = api.parseAuthorizationCallback(input);
+	    
+	    System.out.println(verifier);
+	    
+	    TwitterClientSession clientSession = api.getAccessToken(value, verifier);
+	    
+	    System.out.println(clientSession.getMyTweets().size());
 	}
 }
