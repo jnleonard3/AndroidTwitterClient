@@ -1,16 +1,16 @@
 package eva.twitter.api;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 //TODO: Write specific parameter getter/setters
 public class Parameters {
 
     private Set<ParameterEnum> oAuthParameters = null;
 
-    private Map<ParameterEnum, String> parameters = new HashMap<ParameterEnum, String>();
+    private Map<ParameterEnum, String> parameters = new TreeMap<ParameterEnum, String>();
 
     public Parameters() {
     }

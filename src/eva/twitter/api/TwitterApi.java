@@ -58,46 +58,45 @@ public class TwitterApi {
     public static String read(String url, String httpMethod, String consumerKey, String consumerSecret, String token, String tokenSecret, Parameters requestParameters) {
 
         StringBuffer buffer = new StringBuffer();
+
+        String header;
+
         try {
             /**
-             * get the time - note: value below zero the millisecond value is
-             * used for oauth_nonce later on
+             * get the time - note: value below zero the millisecond value is used for oauth_nonce later on
              */
             long seconds = System.currentTimeMillis() / 1000;
             long nonce = System.currentTimeMillis();
 
             /**
-             * Listing of all parameters necessary to retrieve a token (sorted
-             * lexicographically as demanded)
+             * Listing of all parameters necessary to retrieve a token (sorted lexicographically as demanded)
              */
             Parameters oAuthParameters = new Parameters();
-            
+
             oAuthParameters.setParameter(ParameterEnum.OAUTH_CONSUMER_KEY, consumerKey);
             oAuthParameters.setParameter(ParameterEnum.OAUTH_NONCE, String.valueOf(nonce));
             oAuthParameters.setParameter(ParameterEnum.OAUTH_SIGNATURE_METHOD, "HMAC-SHA1");
             oAuthParameters.setParameter(ParameterEnum.OAUTH_TIMESTAMP, String.valueOf(seconds));
-            if(token != null) {
-                
+            if (token != null) {
+
                 oAuthParameters.setParameter(ParameterEnum.OAUTH_TOKEN, token);
             }
             oAuthParameters.setParameter(ParameterEnum.OAUTH_VERSION, "1.0");
-            
+
             Parameters mergedParameters = new Parameters();
-            
-            if(requestParameters != null) {
-                
-                for(ParameterEnum parameter : requestParameters.getOauthParameterKeys()) {
-                    
-                    System.out.println(parameter + ", " + requestParameters.getParameter(parameter));
-                    
+
+            if (requestParameters != null) {
+
+                for (ParameterEnum parameter : requestParameters.getOauthParameterKeys()) {
+
                     oAuthParameters.setParameter(parameter, requestParameters.getParameter(parameter));
                 }
-                
+
                 mergedParameters.addAll(requestParameters);
             }
-            
+
             mergedParameters.addAll(oAuthParameters);
-            
+
             StringBuilder parameterString = new StringBuilder();
 
             for (ParameterEnum parameter : mergedParameters.getParameters()) {
@@ -112,24 +111,24 @@ public class TwitterApi {
                     parameterString.append("&");
                 }
             }
-            
-            if(parameterString.length() > 0) {
+
+            if (parameterString.length() > 0) {
 
                 parameterString.deleteCharAt(parameterString.length() - 1);
             }
-            
+
             /**
              * Generation of the signature base string
              */
             String signature_base_string = httpMethod + "&" + URLEncoder.encode(url, "UTF-8") + "&" + URLEncoder.encode(parameterString.toString(), "UTF-8");
 
             String signing_key = URLEncoder.encode(consumerSecret, "UTF-8") + "&";
-            
-            if(tokenSecret != null) {
-                
+
+            if (tokenSecret != null) {
+
                 signing_key = signing_key + URLEncoder.encode(tokenSecret, "UTF-8");
             }
-            
+
             /**
              * Sign the request
              */
@@ -142,7 +141,7 @@ public class TwitterApi {
             /**
              * Create the header for the request
              */
-            String header = "OAuth ";
+            header = "OAuth ";
             for (ParameterEnum parameter : oAuthParameters.getParameters()) {
 
                 String value = oAuthParameters.getParameter(parameter);
@@ -154,11 +153,20 @@ public class TwitterApi {
             }
             // cut off last appended comma
             header = header.substring(0, header.length() - 2);
-            
+
             System.out.println(signature_base_string);
 
+        } catch (Exception e) {
+
+            throw new RuntimeException("Caught exception while creating a HTTP Request", e);
+        }
+        
+        URLConnection connection = null;
+
+        try {
+
             String charset = "UTF-8";
-            URLConnection connection = new URL(url).openConnection();
+            connection = new URL(url).openConnection();
             connection.setDoInput(true);
             connection.setDoOutput(true);
             connection.setRequestProperty("Accept-Charset", charset);
@@ -168,17 +176,17 @@ public class TwitterApi {
             if (httpMethod.equals("POST")) {
 
                 StringBuilder bodyBuilder = new StringBuilder();
-                
-                if(requestParameters != null && !requestParameters.getParameters().isEmpty()) {
-                    
-                    for(ParameterEnum parameter : requestParameters.getParameters()) {
-                        
-                        if(!parameter.isOauthKey()) {
-                        
+
+                if (requestParameters != null && !requestParameters.getParameters().isEmpty()) {
+
+                    for (ParameterEnum parameter : requestParameters.getParameters()) {
+
+                        if (!parameter.isOauthKey()) {
+
                             String value = requestParameters.getParameter(parameter);
-                            
+
                             if (value != null) {
-                                
+
                                 bodyBuilder.append(URLEncoder.encode(parameter.getKey(), "UTF-8"));
                                 bodyBuilder.append("=");
                                 bodyBuilder.append(URLEncoder.encode(value, "UTF-8").replace("+", "%20"));
@@ -186,9 +194,9 @@ public class TwitterApi {
                             }
                         }
                     }
-                    
-                    if(bodyBuilder.length() > 0) {
-                    
+
+                    if (bodyBuilder.length() > 0) {
+
                         bodyBuilder.deleteCharAt(bodyBuilder.length() - 1);
                     }
                 }
@@ -196,35 +204,35 @@ public class TwitterApi {
                 OutputStream output = connection.getOutputStream();
                 output.write(bodyBuilder.toString().getBytes(charset));
             }
-            
-            try {
-                
-                HttpURLConnection httpConnection = (HttpURLConnection) connection;
-                
-                System.out.println("Response Code: " + httpConnection.getResponseCode());
 
-                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
 
-                String read;
-                while ((read = reader.readLine()) != null) {
-                    buffer.append(read);
-                }
-
-            } catch (IOException e) {
-
-                BufferedReader reader = new BufferedReader(new InputStreamReader(((HttpURLConnection) connection).getErrorStream()));
-
-                System.out.println("Error:");
-                String read;
-                while ((read = reader.readLine()) != null) {
-                    System.out.println(read);
-                }
-
-                return null;
-
+            String read;
+            while ((read = reader.readLine()) != null) {
+                buffer.append(read);
             }
+
         } catch (Exception e) {
-            e.printStackTrace();
+            
+            StringBuilder connectionError = new StringBuilder();
+            
+            if(connection != null) {
+                
+                BufferedReader reader = new BufferedReader(new InputStreamReader(((HttpURLConnection) connection).getErrorStream()));
+                
+                try {
+
+                    String read;
+                    while ((read = reader.readLine()) != null) {
+                        connectionError.append(read);
+                    }
+                    
+                } catch (IOException ioE) {
+                    // Ignore this for now
+                }                
+            }
+
+            throw new RuntimeException("Caught exception while making a HTTP Request (" + connectionError + ")" , e);
         }
 
         return buffer.toString();
@@ -238,6 +246,11 @@ public class TwitterApi {
         
         String value = read("https://api.twitter.com/oauth/request_token", "POST", requestTokenParameters);
         
+        if(value == null || value.length() == 0) {
+            
+            throw new IllegalArgumentException("Request token cannot be null or empty");
+        }
+        
         String[] propertiesArray = value.split("&");
         
         Map<String, String> properties = new HashMap<String, String>();
@@ -246,7 +259,14 @@ public class TwitterApi {
             
             String[] propertyEntry = property.split("=");
             
-            properties.put(propertyEntry[0], propertyEntry[1]);
+            if(propertyEntry.length == 2) {
+            
+                properties.put(propertyEntry[0], propertyEntry[1]);
+                
+            } else {
+                
+                throw new IllegalArgumentException("Could not parse property: " + property + "(" + value + ")");
+            }
         }
         
         String token = properties.get(ParameterEnum.OAUTH_TOKEN.getKey());
@@ -321,7 +341,7 @@ public class TwitterApi {
 	    
 	    return new TwitterClientSession(this, token, tokenSecret);
 	}
-
+	
 	public static void main(String[] args) {
 
 	    TwitterApi api = new TwitterApi(TwitterProps.instance().getConsumerKey(), TwitterProps.instance().getConsumerSecret());

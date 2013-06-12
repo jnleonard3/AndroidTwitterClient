@@ -1,3 +1,7 @@
 *.class
 .classpath
 .project
+bin/
+gen/
+hs_*.log
+proguard-project.txt

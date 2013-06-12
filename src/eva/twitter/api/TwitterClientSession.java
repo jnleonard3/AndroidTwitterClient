@@ -91,6 +91,28 @@ public class TwitterClientSession {
         }
     }
     
+    public List<Tweet> getUserTweets(String userName) {
+        
+        Parameters parameters = new Parameters();
+        
+        if(userName != null) {
+        
+            parameters.setParameter(ParameterEnum.SCREEN_NAME, userName);
+        }
+        
+        String tweetsJson = read("https://api.twitter.com/1.1/statuses/user_timeline.json", "GET", parameters);
+
+        if (tweetsJson != null) {
+
+            return JsonParser.parseTweetList(tweetsJson);
+            
+        } else {
+            
+            return null;
+        }
+        
+    }
+    
     public void postTweet(String text) {
         
         Parameters parameters = new Parameters();
