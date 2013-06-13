@@ -1,5 +1,6 @@
 package eva.twitter.api;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -7,7 +8,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
-public class TwitterClientSession {
+public class TwitterClientSession implements Serializable {
     
     private TwitterApi api;
     
@@ -22,6 +23,16 @@ public class TwitterClientSession {
         this.token = token;
         
         this.tokenSecret = tokenSecret;
+    }
+    
+    public String getToken() {
+        
+        return token;
+    }
+    
+    public String getTokenSecret() {
+        
+        return tokenSecret;
     }
     
     public String read(String url, String httpMethod) {

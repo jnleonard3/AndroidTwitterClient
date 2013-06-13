@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -18,7 +19,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import biz.source_code.base64Coder.Base64Coder;
 
-public class TwitterApi {
+public class TwitterApi implements Serializable {
     
     private String consumerKey;
     

@@ -1,6 +1,4 @@
 *.class
-.classpath
-.project
 bin/
 gen/
 hs_*.log

@@ -22,8 +22,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name="eva.twitter.android.ViewTweetsActivity"
+            android:label="@string/title_activity_view_tweets" >
+        </activity>
     </application>
-    
+
     <uses-permission android:name="android.permission.INTERNET" />
 
 </manifest>
