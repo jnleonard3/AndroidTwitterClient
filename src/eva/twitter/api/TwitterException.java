@@ -28,26 +28,27 @@
  */
 package eva.twitter.api;
 
-public class OauthRequestToken {
+public class TwitterException extends Exception {
+
+    private static final long serialVersionUID = 1L;
     
-    private String token;
+    private String[] errors;
     
-    private String token_secret;
-    
-    public OauthRequestToken(String token, String token_secret) {
+    public TwitterException(String[] errors) {
         
-        this.token = token;
-        this.token_secret = token_secret;
+        this.errors = errors;
     }
     
-    public String getToken() {
+    public String getLocalizedMessage() {
         
-        return token;
-    }
-    
-    public String getTokenSecret() {
+        StringBuilder builder = new StringBuilder();
         
-        return token_secret;
+        for(String error : errors) {
+            
+            builder.append(error).append(",");
+        }
+        
+        return builder.toString();        
     }
 
 }

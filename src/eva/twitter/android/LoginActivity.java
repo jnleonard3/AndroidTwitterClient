@@ -177,14 +177,11 @@ public class LoginActivity extends Activity {
     
     private boolean viewingWebpage = false;
     
+    private int step = 1;
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        if(savedInstanceState != null) {
-            
-            onRestoreInstanceState(savedInstanceState);
-        }
         
         if(!TwitterProps.exists()) {
             
@@ -235,20 +232,34 @@ public class LoginActivity extends Activity {
             
         } else {
             
-            twitterApi = new TwitterApi(TwitterProps.instance().getConsumerKey(), TwitterProps.instance().getConsumerSecret());
+            if(step == 1) {
             
-            TwitterClientSession clientSession = twitterApi.createClientSession(token, tokenSecret);
-            
-            startUserSession(clientSession);
+                twitterApi = new TwitterApi(TwitterProps.instance().getConsumerKey(), TwitterProps.instance().getConsumerSecret());
+                
+                TwitterClientSession clientSession = twitterApi.createClientSession(token, tokenSecret);
+                
+                startUserSession(clientSession);
+                
+            } else if(step == 2) {
+                
+                
+            }
         }
+    }
+    
+    @Override
+    protected void onStop() {
+        super.onStop();
     }
     
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         
+        outState.putInt("authStep", step);
+        
         if(webView != null) {
-            
+
             webView.saveState(outState);
         }
     }
@@ -257,8 +268,10 @@ public class LoginActivity extends Activity {
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onSaveInstanceState(savedInstanceState);
         
+        step = savedInstanceState.getInt("authStep", 1);
+        
         if(webView != null) {
-            
+
             webView.restoreState(savedInstanceState);
         }
     }
@@ -331,7 +344,7 @@ public class LoginActivity extends Activity {
         
         AlertDialog alertDialog = new AlertDialog.Builder(this).create();
         alertDialog.setTitle("Application Error");
-        alertDialog.setMessage("There was problem get Twitter authorization (Error code: " + errorCode + ")");
+        alertDialog.setMessage("There was problem getting Twitter authorization (Error code: " + errorCode + ")");
         alertDialog.setButton("OK", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int which) {
                 Intent intent = new Intent(Intent.ACTION_MAIN);

@@ -28,26 +28,44 @@
  */
 package eva.twitter.api;
 
-public class OauthRequestToken {
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+public class TweetList {
     
-    private String token;
+    private List<Tweet> tweets;
     
-    private String token_secret;
+    private Tweet lastTweet = null;
     
-    public OauthRequestToken(String token, String token_secret) {
+    public TweetList(List<Tweet> tweets) {
         
-        this.token = token;
-        this.token_secret = token_secret;
+        this.tweets = Collections.unmodifiableList(new ArrayList<Tweet>(tweets));
+
+        for (Tweet tweet : this.tweets) {
+            
+            if(lastTweet != null) {
+                
+                if(tweet.getCreatedAtDate().before(lastTweet.getCreatedAtDate())) {
+                    
+                    lastTweet = tweet;
+                }
+                
+            } else {
+                
+                lastTweet = tweet;
+            }
+        }
     }
     
-    public String getToken() {
+    public List<Tweet> getTweets() {
         
-        return token;
+        return tweets;
     }
     
-    public String getTokenSecret() {
+    public Tweet getLastTweet() {
         
-        return token_secret;
+        return lastTweet;
     }
 
 }

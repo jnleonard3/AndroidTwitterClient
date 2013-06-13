@@ -1,3 +1,31 @@
+/*
+ * Copyright (c) 2013, Jon Leonard
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met: 
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer. 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * The views and conclusions contained in the software and documentation are those
+ * of the authors and should not be interpreted as representing official policies, 
+ * either expressed or implied, of the FreeBSD Project.
+ */
 package eva.twitter.api;
 
 import java.io.BufferedReader;
@@ -12,7 +40,6 @@ import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Scanner;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -20,7 +47,9 @@ import javax.crypto.spec.SecretKeySpec;
 import biz.source_code.base64Coder.Base64Coder;
 
 public class TwitterApi implements Serializable {
-    
+
+    private static final long serialVersionUID = 1L;
+
     private String consumerKey;
     
     private String consumerSecret;
@@ -50,7 +79,7 @@ public class TwitterApi implements Serializable {
 
         return read(url, httpMethod, consumerKey, consumerSecret, token, null, requestParameters);
     }
-    
+
     public String read(String url, String httpMethod, String token, String token_secret, Parameters requestParameters) {
 
         return read(url, httpMethod, consumerKey, consumerSecret, token, token_secret, requestParameters);
@@ -61,6 +90,8 @@ public class TwitterApi implements Serializable {
         StringBuffer buffer = new StringBuffer();
 
         String header;
+        
+        StringBuilder queryUrl = new StringBuilder(url);
 
         try {
             /**
@@ -117,6 +148,35 @@ public class TwitterApi implements Serializable {
 
                 parameterString.deleteCharAt(parameterString.length() - 1);
             }
+            
+            if(httpMethod.equals("GET")) {
+                
+                if (requestParameters != null && !requestParameters.getParameters().isEmpty()) {
+                    
+                    queryUrl.append("?");
+
+                    for (ParameterEnum parameter : requestParameters.getParameters()) {
+
+                        if (!parameter.isOauthKey()) {
+
+                            String value = requestParameters.getParameter(parameter);
+
+                            if (value != null) {
+
+                                queryUrl.append(URLEncoder.encode(parameter.getKey(), "UTF-8"));
+                                queryUrl.append("=");
+                                queryUrl.append(URLEncoder.encode(value, "UTF-8").replace("+", "%20"));
+                                queryUrl.append("&");
+                            }
+                        }
+                    }
+
+                    if (queryUrl.length() > 0) {
+
+                        queryUrl.deleteCharAt(queryUrl.length() - 1);
+                    }
+                }
+            }
 
             /**
              * Generation of the signature base string
@@ -155,19 +215,17 @@ public class TwitterApi implements Serializable {
             // cut off last appended comma
             header = header.substring(0, header.length() - 2);
 
-            System.out.println(signature_base_string);
-
         } catch (Exception e) {
 
             throw new RuntimeException("Caught exception while creating a HTTP Request", e);
         }
-        
+                
         URLConnection connection = null;
 
         try {
 
             String charset = "UTF-8";
-            connection = new URL(url).openConnection();
+            connection = new URL(queryUrl.toString()).openConnection();
             connection.setDoInput(true);
             connection.setDoOutput(true);
             connection.setRequestProperty("Accept-Charset", charset);
@@ -344,25 +402,37 @@ public class TwitterApi implements Serializable {
 	}
 	
 	public static void main(String[] args) {
+	    
+	    try {
 
-	    TwitterApi api = new TwitterApi(TwitterProps.instance().getConsumerKey(), TwitterProps.instance().getConsumerSecret());
-	    
-	    OauthRequestToken value = api.getRequestToken("http://localhost/sign_in_with_twitter");
-	    
-	    String url = api.getAuthorizationUrl(value);
-	    
-	    System.out.println(url);
-
-	    System.out.println("Enter callback URL value");
-	    Scanner keyboard = new Scanner(System.in);
-	    String input = keyboard.nextLine();
-	    
-	    String verifier = api.parseAuthorizationCallback(input);
-	    
-	    System.out.println(verifier);
-	    
-	    TwitterClientSession clientSession = api.getAccessToken(value, verifier);
-	    
-	    System.out.println(clientSession.getMyTweets().size());
-	}
+    	    TwitterApi api = new TwitterApi(TwitterProps.instance().getConsumerKey(), TwitterProps.instance().getConsumerSecret());
+    	    
+    	    TwitterClientSession clientSession = api.createClientSession("359353668-ke6LlR5mH8TUv05y5SQk1JXPOt2DtY7Y8seG5c9U", "vYa47f8XyG6lsMYBQg9vxdLYU5VGKSf1CYUmM434WA");
+    	    
+    	    TweetList list = clientSession.getNewsFeed(5, null);
+    	    
+    	    for(Tweet tweet : list.getTweets()) {
+    	        
+    	        System.out.println(tweet.getText());
+    	    }
+    
+            list = clientSession.getNewsFeed(5, list.getLastTweet().getId());
+    
+            for (Tweet tweet : list.getTweets()) {
+    
+                System.out.println(tweet.getText());
+            }
+            
+            list = clientSession.getNewsFeed(5, list.getLastTweet().getId());
+    
+            for (Tweet tweet : list.getTweets()) {
+    
+                System.out.println(tweet.getText());
+            }
+            
+	    } catch (TwitterServiceException e) {
+	        
+	        System.out.println(e);
+	    }
+    }
 }
